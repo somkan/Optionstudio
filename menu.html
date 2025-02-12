@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options Trading Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .dashboard-section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .metric-card {
+            background: #ffffff;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            border-radius: 5px;
+        }
+
+        .arbitrage-alert {
+            background: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .no-arbitrage {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+
+        .detail-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .detail-list li {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .profit-badge {
+            background: #4CAF50;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+
+        .timestamp {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            text-align: right;
+        }
+
+        /* Existing Menu Styles */
+        .menu {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 40px;
+        }
+
+        .menu a {
+            text-decoration: none;
+            color: #3498db;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .menu a:hover {
+            background-color: #3498db;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Menu Navigation -->
+        <div class="menu">
+            <a href="/">Home</a>
+            <a href="/volatility">Volatility Analysis</a>
+            <a href="/weekly_expiry">Weekly Expiry</a>
+            <a href="/api/start_strategy">Start Strategy Execution</a>
+            <a href="/api/running_strategies">Running Strategies</a>
+            <a href="/check_arbitrage">Arbitrage Opportunities</a>
+        </div>
+
+        <h1>Options Trading Dashboard</h1>
+
+        <!-- Market Analysis Section -->
+        <div class="dashboard-section">
+            <h2>Real-Time Market Analysis</h2>
+            <div class="analysis-grid" id="analysis-results">
+                <!-- Filled by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Arbitrage Opportunity Section -->
+        <div class="dashboard-section">
+            <h2>Arbitrage Detection</h2>
+            <div id="arbitrage-results">
+                <!-- Filled by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Refresh Button -->
+        <div class="timestamp" id="last-updated">
+            Last updated: <span id="update-time">Loading...</span>
+        </div>
+    </div>
+
+    <script>
+        // Fetch analysis results from backend
+        async function fetchAnalysis() {
+            try {
+                const response = await fetch('/api/analysis');
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error fetching analysis:', error);
+                return null;
+            }
+        }
+
+        // Format numbers to 2 decimal places
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'INR',
+                minimumFractionDigits: 2
+            }).format(value);
+        }
+
+        // Update display with analysis data
+        function displayAnalysis(data) {
+            const analysisDiv = document.getElementById('analysis-results');
+            const arbitrageDiv = document.getElementById('arbitrage-results');
+            const updateTime = document.getElementById('update-time');
+
+            // Update timestamp
+            updateTime.textContent = new Date().toLocaleString();
+
+            // Market Analysis Metrics
+            analysisDiv.innerHTML = `
+                <div class="metric-card">
+                    <h3>Market Condition</h3>
+                    <p style="font-size: 1.5em; color: ${data.market_condition === 'Volatile' ? '#e74c3c' : '#2ecc71'}">
+                        ${data.market_condition}
+                    </p>
+                </div>
+                <div class="metric-card">
+                    <h3>Recommended Strategy</h3>
+                    <p style="font-size: 1.5em; color: #3498db;">${data.recommended_strategy}</p>
+                </div>
+                <div class="metric-card">
+                    <h3>Confidence Score</h3>
+                    <p style="font-size: 1.5em; color: #f39c12;">${data.confidence_score}%</p>
+                </div>
+            `;
+
+            // Arbitrage Opportunity Display
+            if (data.arbitrage_opportunity && data.arbitrage_details) {
+                arbitrageDiv.innerHTML = `
+                    <div class="arbitrage-alert">
+                        <h3 style="margin-top: 0;">🚀 Opportunity Detected!</h3>
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                            <span class="profit-badge">Potential Profit: ${formatCurrency(data.arbitrage_details.profit)}</span>
+                            <span style="font-weight: bold;">${data.arbitrage_details.strategy}</span>
+                        </div>
+
+                        <h4>Market Parameters</h4>
+                        <ul class="detail-list">
+                            <li>Underlying Price: ${formatCurrency(data.arbitrage_details.details.underlying_price)}</li>
+                            <li>Call Option Price: ${formatCurrency(data.arbitrage_details.details.call_price)}</li>
+                            <li>Put Option Price: ${formatCurrency(data.arbitrage_details.details.put_price)}</li>
+                            <li>Strike Price: ${formatCurrency(data.arbitrage_details.details.strike_price)}</li>
+                            <li>Theoretical Put Price: ${formatCurrency(data.arbitrage_details.details.theoretical_put_price)}</li>
+                        </ul>
+                    </div>
+                `;
+            } else {
+                arbitrageDiv.innerHTML = `
+                    <div class="arbitrage-alert no-arbitrage">
+                        <h3 style="margin-top: 0;">🔍 No Arbitrage Opportunities Found</h3>
+                        <p>Current market conditions don't show statistically significant arbitrage opportunities.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-refresh every 60 seconds
+        async function refreshData() {
+            const analysisData = await fetchAnalysis();
+            if (analysisData) {
+                displayAnalysis(analysisData);
+            }
+        }
+
+        // Initial load
+        window.onload = async () => {
+            const analysisData = await fetchAnalysis();
+            if (analysisData) {
+                displayAnalysis(analysisData);
+            }
+            // Set up periodic refresh
+            setInterval(refreshData, 60000);
+        };
+    </script>
+</body>
+</html>
