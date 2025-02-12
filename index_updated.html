@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Options Expiry Strategy</title>
+    <!-- Include Bootstrap CSS from CDN -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { font-family: Arial, sans-serif; padding-top: 20px; }
+        .container { max-width: 800px; }
+        .stage { padding: 20px; border: 1px solid #ccc; border-radius: 10px; margin-bottom: 20px; }
+        .timer { font-weight: bold; }
+        .collapsed { display: none; }
+        .status { font-weight: bold; margin-bottom: 20px; }
+        .status.active { color: green; }
+        .status.stopped { color: red; }
+        .flowchart { display: flex; justify-content: space-between; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Trading Strategy</h1>
+
+        <!-- Status Indicator -->
+        <div id="tradeStatus" class="status text-center"></div>
+
+        <div id="symbolEntry" class="my-4">
+            <h2>Enter Symbol</h2>
+            <div class="form-group">
+                <label for="symbol">Symbol:</label>
+                <select id="symbol" name="symbol" class="form-control">
+                    <option value="NIFTY">NIFTY</option>
+                    <option value="BANKNIFTY">BANKNIFTY</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="timer" class="my-4 text-center timer">
+            Next auto-refresh in: <span id="countdown">300</span> seconds
+        </div>
+
+        <!-- Flowchart and Stages -->
+        <div id="stages" class="flowchart">
+            <div class="col stage bg-light">
+                <button class="btn btn-primary btn-sm" onclick="toggleStage(1)">Toggle Stage 1</button>
+                <div id="stage1Content">
+                    <h2>Stage 1: Calculate Difference</h2>
+                    <p>Previous Close: <span id="prevCloseDisplay"></span></p>
+                    <p>Today's Open: <span id="currOpenDisplay"></span></p>
+                    <p>Difference: <span id="difference"></span></p>
+                </div>
+            </div>
+            <div class="col stage bg-light">
+                <button class="btn btn-primary btn-sm" onclick="toggleStage(2)">Toggle Stage 2</button>
+                <div id="stage2Content">
+                    <h2>Stage 2: Determine Position</h2>
+                    <p>Position: <span id="position"></span></p>
+                </div>
+            </div>
+            <div class="col stage bg-light">
+                <button class="btn btn-primary btn-sm" onclick="toggleStage(3)">Toggle Stage 3</button>
+                <div id="stage3Content">
+                    <h2>Stage 3: Calculate Strike Price</h2>
+                    <p>Strike Price: <span id="strikePrice"></span></p>
+                </div>
+            </div>
+            <div class="col stage bg-light">
+                <button class="btn btn-primary btn-sm" onclick="toggleStage(4)">Toggle Stage 4</button>
+                <div id="stage4Content">
+                    <h2>Stage 4: Place Trade</h2>
+                    <p>Trade Action: <span id="tradeAction"></span></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="stage bg-light">
+            <h2>Stage 5: Monitor Premium</h2>
+            <p>Initial Premium: <span id="initialPremium"></span></p>
+            <p>Current Premium: <span id="currentPremium"></span></p>
+            <p>Status: <span id="status"></span></p>
+            <p>Symbol: <span id="stopLoss"></span></p>
+        </div>
+    </div>
+
+    <!-- Include Bootstrap JS and dependencies from CDN -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+function calculateStrategy(serverData) {
+    // Update displays with raw data
+    document.getElementById('prevCloseDisplay').textContent = serverData.previousClose;
+    document.getElementById('currOpenDisplay').textContent = serverData.currentOpen;
+    document.getElementById('difference').textContent = (serverData.currentOpen - serverData.previousClose).toFixed(2);
+
+    // Display server-calculated strategy
+    document.getElementById('position').textContent = serverData.position;
+    document.getElementById('strikePrice').textContent = serverData.strikePrice;
+
+    // Trade action using server-determined values
+    const tradeAction = `Short ${serverData.optionType} at ${serverData.strikePrice} ${serverData.optionType}`;
+    document.getElementById('tradeAction').textContent = tradeAction;
+
+    // Premium monitoring
+    const stopLoss = (serverData.openPremium * 1.8).toFixed(2);
+    const status = serverData.currentPremium > stopLoss ? 
+        `Trade Stopped at ${stopLoss}!` : 
+        `Trade Active`;
+    
+    // Update status message and color
+    const tradeStatus = document.getElementById('tradeStatus');
+    if (serverData.highPremium > stopLoss) {
+        tradeStatus.textContent = `Trade Stopped at ${stopLoss}!`;
+        tradeStatus.className = 'status stopped';
+    } else {
+        tradeStatus.textContent = `Trade Active`;
+        tradeStatus.className = 'status active';
+    }
+        
+    document.getElementById('initialPremium').textContent = serverData.openPremium;
+    document.getElementById('currentPremium').textContent = serverData.currentPremium;
+    document.getElementById('status').textContent = status;
+    document.getElementById('stopLoss').textContent = serverData.symbol;
+}
+
+function toggleStage(stageNumber) {
+    const stageContent = document.getElementById(`stage${stageNumber}Content`);
+    stageContent.classList.toggle('collapsed');
+}
+
+function fetchData() {
+    const symbol = document.getElementById('symbol').value;
+    fetch(`http://127.0.0.1:5000/trading-data?symbol=${symbol}`)
+        .then(response => response.json())
+        .then(data => {
+            // Pass all data to strategy calculator
+            calculateStrategy(data);
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function startTimer() {
+    var countdownElement = document.getElementById('countdown');
+    var timeLeft = 300; // 5 minutes in seconds
+
+    var timer = setInterval(function() {
+        timeLeft--;
+        countdownElement.textContent = timeLeft;
+
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            fetchData();
+            startTimer(); // Restart the timer after fetching data
+        }
+    }, 1000);
+}
+
+// Fetch data on page load with default symbol
+window.onload = function() {
+    fetchData();
+    startTimer();
+};
+
+// Fetch data when symbol is changed
+document.getElementById('symbol').addEventListener('change', function() {
+    fetchData();
+    startTimer(); // Restart the timer when the symbol is changed
+});
+    </script>
+</body>
+</html>

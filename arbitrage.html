@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options Arbitrage Checker</title>
+    <style>
+         <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options Arbitrage Checker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f6fa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-weight: 500;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 15px;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        #symbolInput {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        #symbolInput:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        button {
+            padding: 12px 25px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .expiry-toggle {
+            margin: 25px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .expiry-toggle label {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 25px;
+            padding: 8px 15px;
+            background-color: white;
+            border-radius: 20px;
+            border: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .expiry-toggle label:hover {
+            border-color: #3498db;
+            background-color: #f8fbff;
+        }
+
+        .expiry-toggle input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: #3498db;
+        }
+
+        #loading {
+            padding: 20px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.9em;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover {
+            background-color: #f8fbff;
+        }
+
+        .profit-positive {
+            color: #27ae60;
+            font-weight: 500;
+        }
+
+        .error {
+            color: #e74c3c;
+            padding: 15px;
+            background-color: #fdeded;
+            border-radius: 6px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .input-section {
+                flex-direction: column;
+            }
+
+            .expiry-toggle label {
+                margin-bottom: 10px;
+            }
+
+            table {
+                font-size: 14px;
+            }
+        }
+        /* Add styles for the toggle bar */
+        .expiry-toggle {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .expiry-toggle label {
+            margin-right: 15px;
+            font-weight: normal;
+        }
+        .expiry-toggle input[type="checkbox"] {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Arbitrage Opportunity Screener</h1>
+
+        <div class="input-section">
+            <input type="text" id="symbolInput" placeholder="Enter symbol (e.g., NIFTY)" value="NIFTY">
+            <button onclick="checkArbitrage()">Check Opportunities</button>
+        </div>
+
+        <!-- Toggle bar for expiry dates -->
+        <div class="expiry-toggle" id="expiryToggle">
+            <strong>Filter by Expiry:</strong>
+            <!-- Expiry checkboxes will be populated here -->
+        </div>
+
+        <div id="loading">Loading data... Please wait</div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let allOpportunities = []; // Store all opportunities for filtering
+
+        function checkArbitrage() {
+            const symbol = document.getElementById('symbolInput').value;
+            const loading = document.getElementById('loading');
+            const resultsDiv = document.getElementById('results');
+            const expiryToggle = document.getElementById('expiryToggle');
+
+            // Show loading indicator
+            loading.style.display = 'block';
+            resultsDiv.innerHTML = '';
+            expiryToggle.innerHTML = '<strong>Filter by Expiry:</strong>'; // Reset expiry toggle
+
+            // Make API call to your backend
+            fetch('/check_arbitrage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: symbol })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+
+                if (data.error) {
+                    resultsDiv.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                    return;
+                }
+
+                if (data.length === 0) {
+                    resultsDiv.innerHTML = '<div>No arbitrage opportunities found</div>';
+                    return;
+                }
+
+                // Store all opportunities for filtering
+                allOpportunities = data;
+
+                // Populate expiry toggle bar
+                const uniqueExpiries = [...new Set(data.map(opp => opp.expiry))];
+                uniqueExpiries.forEach(expiry => {
+                    expiryToggle.innerHTML += `
+                        <label>
+                            <input type="checkbox" checked onchange="filterResults()"> ${expiry}
+                        </label>
+                    `;
+                });
+
+                // Display filtered results
+                filterResults();
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            });
+        }
+
+        function filterResults() {
+            const resultsDiv = document.getElementById('results');
+            const checkboxes = document.querySelectorAll('#expiryToggle input[type="checkbox"]');
+
+            // Get selected expiries
+            const selectedExpiries = [];
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedExpiries.push(checkbox.nextSibling.textContent.trim());
+                }
+            });
+
+            // Filter opportunities based on selected expiries
+            const filteredOpportunities = allOpportunities.filter(opp => selectedExpiries.includes(opp.expiry));
+
+            // Display filtered results
+            if (filteredOpportunities.length === 0) {
+                resultsDiv.innerHTML = '<div>No opportunities found for selected expiries</div>';
+                return;
+            }
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Expiry Date</th>
+                            <th>Strike Price</th>
+                            <th>Underlying Price</th>
+                            <th>Call Price</th>
+                            <th>Put Price</th>
+                            <th>Theoretical Put Price</th>
+                            <th>Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            filteredOpportunities.forEach(opportunity => {
+                html += `
+                    <tr>
+                        <td>${opportunity.expiry}</td>
+                        <td>${opportunity.strike.toFixed(2)}</td>
+                        <td>${opportunity.futures_price.toFixed(2)}</td>
+                        <td>${opportunity.call_price.toFixed(2)}</td>
+                        <td>${opportunity.put_price.toFixed(2)}</td>
+                        <td>${opportunity.theoretical_put_price.toFixed(2)}</td>
+                        <td class="profit-positive">₹${opportunity.profit.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            resultsDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

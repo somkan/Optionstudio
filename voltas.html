@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .green {
+            background-color: #d4edda;  /* Light green */
+        }
+        .blue {
+            background-color: #d1ecf1;  /* Light blue */
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .modal.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Options Data (CE and PE for Same Strike)</h1>
+    <div id="spot-price"></div>
+    <div id="data"></div>
+
+    <!-- Modal for displaying Greeks -->
+    <div id="greeks-modal" class="modal">
+        <h3>Option Greeks</h3>
+        <p><strong>Delta:</strong> <span id="delta"></span></p>
+        <p><strong>Gamma:</strong> <span id="gamma"></span></p>
+        <p><strong>Vega:</strong> <span id="vega"></span></p>
+        <p><strong>Theta:</strong> <span id="theta"></span></p>
+        <button onclick="closeModal()">Close</button>
+    </div>
+
+    <script>
+        // Function to fetch data from the Flask server
+        async function fetchData() {
+            try {
+                const response = await fetch('/get_data');
+                const data = await response.json();
+                displayData(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        // Function to display data in the HTML
+        function displayData(data) {
+            const container = document.getElementById('data');
+            const spotPriceContainer = document.getElementById('spot-price');
+            container.innerHTML = '';
+
+            // Display spot price
+            if (data.spot_price) {
+                spotPriceContainer.innerHTML = `<h2>Spot Price: ${data.spot_price}</h2>`;
+            }
+
+            // Sort expiry dates by days_to_expiry (least to max)
+            const sortedExpiryDates = Object.keys(data).sort((a, b) => data[a].days_to_expiry - data[b].days_to_expiry);
+
+            for (const expiry of sortedExpiryDates) {
+                const expiryData = data[expiry];
+                const daysToExpiry = expiryData.days_to_expiry;
+                const strikes = expiryData.strikes;
+                const volatilityBands = expiryData.volatility_bands;
+
+                // Create a table for each expiry
+                const table = document.createElement('table');
+                table.innerHTML = `
+                    <caption><h2>Expiry: ${expiry} (Days to Expiry: ${daysToExpiry})</h2></caption>
+                    <thead>
+                        <tr>
+                            <th>Strike</th>
+                            <th>CE IV (%)</th>
+                            <th>CE Last Price</th>
+                            <th>PE IV (%)</th>
+                            <th>PE Last Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${strikes.map(strike => {
+                            const isCEAboveSD2 = strike.CE.iv > volatilityBands.sd_plus_2;
+                            const isPEAboveSD2 = strike.PE.iv > volatilityBands.sd_plus_2;
+                            const isCEBelowSD2 = strike.CE.iv < volatilityBands.sd_minus_2;
+                            const isPEBelowSD2 = strike.PE.iv < volatilityBands.sd_minus_2;
+
+                            return `
+                                <tr>
+                                    <td>${strike.strike}</td>
+                                    <td class="${isCEAboveSD2 ? 'green' : isCEBelowSD2 ? 'blue' : ''}" onclick="showGreeks('${expiry}', ${strike.strike}, 'CE')">${strike.CE.iv.toFixed(2)}</td>
+                                    <td>${strike.CE.last_price}</td>
+                                    <td class="${isPEAboveSD2 ? 'green' : isPEBelowSD2 ? 'blue' : ''}" onclick="showGreeks('${expiry}', ${strike.strike}, 'PE')">${strike.PE.iv.toFixed(2)}</td>
+                                    <td>${strike.PE.last_price}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                `;
+                container.appendChild(table);
+            }
+        }
+
+        // Function to show Greeks in a modal
+        function showGreeks(expiry, strike, optionType) {
+            const data = JSON.parse(sessionStorage.getItem('optionsData'));
+            const expiryData = data[expiry];
+            const strikeData = expiryData.strikes.find(s => s.strike === strike);
+
+            const greeks = optionType === 'CE' ? strikeData.CE.greeks : strikeData.PE.greeks;
+
+            document.getElementById('delta').textContent = greeks.delta.toFixed(4);
+            document.getElementById('gamma').textContent = greeks.gamma.toFixed(4);
+            document.getElementById('vega').textContent = greeks.vega.toFixed(4);
+            document.getElementById('theta').textContent = greeks.theta.toFixed(4);
+
+            document.getElementById('greeks-modal').classList.add('active');
+        }
+
+        // Function to close the modal
+        function closeModal() {
+            document.getElementById('greeks-modal').classList.remove('active');
+        }
+
+        // Fetch data every 5 minutes
+        fetchData();
+        setInterval(fetchData, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
