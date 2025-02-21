@@ -353,6 +353,6 @@ def main(user):
 if __name__ == "__main__":
     #telegram("FYERS Login Started", "")
 
-    myProcess3 = Process(target=main, args=('XD01606',))
+    myProcess3 = Process(target=main, args=('XS06414',))
 
     myProcess3.start()

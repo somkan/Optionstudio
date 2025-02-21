@@ -1,37 +1,6 @@
 import requests
 from datetime import datetime, timedelta
 import math
-#from scipy.stats import norm
-
-
-def calculate_greeks(spot_price, strike_price, time_to_expiry, volatility, risk_free_rate, option_type):
-    # (Keep the same calculate_greeks implementation from your original code)
-    print(spot_price, strike_price)
-    d1 = (math.log(spot_price / strike_price) + (risk_free_rate + 0.5 * volatility ** 2) * time_to_expiry) / (
-                volatility * math.sqrt(time_to_expiry))
-    d2 = d1 - volatility * math.sqrt(time_to_expiry)
-
-    if option_type == 'CE':
-        delta = norm.cdf(d1)
-        gamma = norm.pdf(d1) / (spot_price * volatility * math.sqrt(time_to_expiry))
-        vega = spot_price * norm.pdf(d1) * math.sqrt(time_to_expiry) / 100
-        theta = (-spot_price * norm.pdf(d1) * volatility / (
-                    2 * math.sqrt(time_to_expiry)) - risk_free_rate * strike_price * math.exp(
-            -risk_free_rate * time_to_expiry) * norm.cdf(d2)) / 365
-    else:
-        delta = -norm.cdf(-d1)
-        gamma = norm.pdf(d1) / (spot_price * volatility * math.sqrt(time_to_expiry))
-        vega = spot_price * norm.pdf(d1) * math.sqrt(time_to_expiry) / 100
-        theta = (-spot_price * norm.pdf(d1) * volatility / (
-                    2 * math.sqrt(time_to_expiry)) + risk_free_rate * strike_price * math.exp(
-            -risk_free_rate * time_to_expiry) * norm.cdf(-d2)) / 365
-
-    return {
-        'delta': delta,
-        'gamma': gamma,
-        'vega': vega,
-        'theta': theta
-    }
 
 def fetch_options_chain(symbol):
     # (Keep the same fetch_options_chain implementation from your original code)
